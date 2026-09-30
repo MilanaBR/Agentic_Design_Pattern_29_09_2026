@@ -2,6 +2,7 @@ import streamlit as st
 
 from patterns.tools_using.graph import build_graph as build_tools_using_graph
 from patterns.planner_executor.graph import build_graph as build_planner_executor_graph
+from patterns.supervisor_worker.graph import build_graph as build_supervisor_worker_graph
 
 st.set_page_config(page_title="Agentic AI Workflow Demo", layout="wide")
 
@@ -18,6 +19,12 @@ patterns = {
         "default": "Create a simple 3-step plan for launching an AI chatbot product.",
         "placeholder": "For example: Plan a weekend trip to Boston.",
     },
+    "Supervisor-Worker": {
+        "description": "A supervisor routes each request to a math or leave-balance worker.",
+        "label": "Ask a question",
+        "default": "What is the leave balance for Alice?",
+        "placeholder": "Try: What is 18% of 250? or How much leave does Alice have?",
+    },
 }
 
 pattern_name = st.sidebar.selectbox("Agentic design pattern", list(patterns))
@@ -28,8 +35,10 @@ st.caption(pattern["description"])
 
 if pattern_name == "Tools-Using":
     app = build_tools_using_graph()
-else:
+elif pattern_name == "Planner-Executor":
     app = build_planner_executor_graph()
+else:
+    app = build_supervisor_worker_graph()
 
 task = st.text_area(
     pattern["label"],
@@ -43,8 +52,10 @@ if st.button("Run agent", use_container_width=True, type="primary"):
     with st.spinner("Thinking..."):
         if pattern_name == "Tools-Using":
             result = app.invoke({"question": task})
-        else:
+        elif pattern_name == "Planner-Executor":
             result = app.invoke({"task": task})
+        else:
+            result = app.invoke({"query": task})
 
     if pattern_name == "Planner-Executor":
         st.subheader("Plan")
@@ -56,6 +67,24 @@ if st.button("Run agent", use_container_width=True, type="primary"):
 
         st.subheader("Execution")
         st.markdown(result.get("output", "No execution output was returned."))
+    elif pattern_name == "Supervisor-Worker":
+        st.subheader("Supervisor Routing")
+        worker = result.get("worker")
+        worker_label = {
+            "math": "Math Agent",
+            "leave": "Leave Balance Agent",
+        }.get(worker, "Unknown worker")
+        st.write(f"Selected worker: **{worker_label}**")
+
+        if worker == "math":
+            st.caption("Generated arithmetic expression")
+            st.code(result.get("expression", "No expression was returned."), language="python")
+            st.success(f"Result: {result.get('result', 'No result was returned.')}")
+        elif worker == "leave":
+            st.write(f"Employee: {result.get('employee_name', 'Unknown')}")
+            st.success(result.get("leave_balance", "No leave balance was returned."))
+        else:
+            st.info(result)
     else:
         st.subheader("Response")
 
